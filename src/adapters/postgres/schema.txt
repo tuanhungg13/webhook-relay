@@ -1,0 +1,183 @@
+           enum           |                              values                               
+--------------------------+-------------------------------------------------------------------
+ attempt_error            | timeout, connection_refused, dns, tls, ssrf_blocked, circuit_open
+ delivery_failed_reason   | exhausted, endpoint_deleted, endpoint_disabled
+ delivery_status          | pending, in_flight, succeeded, failed
+ endpoint_disabled_reason | manual, auto_failing
+
+                        Table "public.api_keys"
+   Column   |           Type           | Collation | Nullable | Default 
+------------+--------------------------+-----------+----------+---------
+ id         | uuid                     |           | not null | 
+ app_id     | uuid                     |           | not null | 
+ key_hash   | bytea                    |           | not null | 
+ prefix     | text                     |           | not null | 
+ created_at | timestamp with time zone |           | not null | 
+ revoked_at | timestamp with time zone |           |          | 
+Indexes:
+    "api_keys_pkey" PRIMARY KEY, btree (id)
+    "api_keys_by_app" btree (app_id)
+    "api_keys_key_hash_key" UNIQUE CONSTRAINT, btree (key_hash)
+Foreign-key constraints:
+    "api_keys_app_id_fkey" FOREIGN KEY (app_id) REFERENCES apps(id)
+
+                          Table "public.apps"
+   Column   |           Type           | Collation | Nullable | Default 
+------------+--------------------------+-----------+----------+---------
+ id         | uuid                     |           | not null | 
+ name       | text                     |           | not null | 
+ created_at | timestamp with time zone |           | not null | 
+Indexes:
+    "apps_pkey" PRIMARY KEY, btree (id)
+Check constraints:
+    "apps_name_check" CHECK (name <> ''::text)
+Referenced by:
+    TABLE "api_keys" CONSTRAINT "api_keys_app_id_fkey" FOREIGN KEY (app_id) REFERENCES apps(id)
+    TABLE "endpoints" CONSTRAINT "endpoints_app_id_fkey" FOREIGN KEY (app_id) REFERENCES apps(id)
+    TABLE "events" CONSTRAINT "events_app_id_fkey" FOREIGN KEY (app_id) REFERENCES apps(id)
+    TABLE "idempotency_keys" CONSTRAINT "idempotency_keys_app_id_fkey" FOREIGN KEY (app_id) REFERENCES apps(id)
+
+                           Table "public.attempts"
+      Column      |           Type           | Collation | Nullable | Default 
+------------------+--------------------------+-----------+----------+---------
+ id               | uuid                     |           | not null | 
+ delivery_id      | uuid                     |           | not null | 
+ attempt_number   | integer                  |           | not null | 
+ started_at       | timestamp with time zone |           | not null | 
+ duration_ms      | integer                  |           | not null | 
+ http_status      | integer                  |           |          | 
+ response_snippet | text                     |           |          | 
+ error            | attempt_error            |           |          | 
+Indexes:
+    "attempts_pkey" PRIMARY KEY, btree (id)
+    "attempts_delivery_id_attempt_number_key" UNIQUE CONSTRAINT, btree (delivery_id, attempt_number)
+Check constraints:
+    "attempts_attempt_number_check" CHECK (attempt_number >= 1)
+    "attempts_duration_ms_check" CHECK (duration_ms >= 0)
+    "attempts_http_status_check" CHECK (http_status >= 100 AND http_status <= 599)
+    "attempts_http_status_xor_error" CHECK ((http_status IS NULL) <> (error IS NULL))
+Foreign-key constraints:
+    "attempts_delivery_id_fkey" FOREIGN KEY (delivery_id) REFERENCES deliveries(id)
+
+                           Table "public.deliveries"
+       Column       |           Type           | Collation | Nullable | Default 
+--------------------+--------------------------+-----------+----------+---------
+ id                 | uuid                     |           | not null | 
+ event_id           | uuid                     |           | not null | 
+ endpoint_id        | uuid                     |           | not null | 
+ status             | delivery_status          |           | not null | 
+ failed_reason      | delivery_failed_reason   |           |          | 
+ attempt_count      | integer                  |           | not null | 
+ next_attempt_at    | timestamp with time zone |           | not null | 
+ lease_until        | timestamp with time zone |           |          | 
+ lease_token        | uuid                     |           |          | 
+ gate_blocked_count | integer                  |           | not null | 
+ traceparent        | text                     |           |          | 
+ last_error         | text                     |           |          | 
+ created_at         | timestamp with time zone |           | not null | 
+ updated_at         | timestamp with time zone |           | not null | 
+Indexes:
+    "deliveries_pkey" PRIMARY KEY, btree (id)
+    "deliveries_by_endpoint" btree (endpoint_id, status, created_at DESC, id DESC)
+    "deliveries_event_id_endpoint_id_key" UNIQUE CONSTRAINT, btree (event_id, endpoint_id)
+    "deliveries_in_flight_lease" btree (lease_until) WHERE status = 'in_flight'::delivery_status
+    "deliveries_pending_due" btree (next_attempt_at) WHERE status = 'pending'::delivery_status
+Check constraints:
+    "deliveries_attempt_count_check" CHECK (attempt_count >= 0)
+    "deliveries_failed_reason_iff_failed" CHECK ((status = 'failed'::delivery_status) = (failed_reason IS NOT NULL))
+    "deliveries_gate_blocked_count_check" CHECK (gate_blocked_count >= 0)
+    "deliveries_lease_token_iff_in_flight" CHECK ((status = 'in_flight'::delivery_status) = (lease_token IS NOT NULL))
+    "deliveries_lease_until_iff_lease_token" CHECK ((lease_token IS NULL) = (lease_until IS NULL))
+Foreign-key constraints:
+    "deliveries_endpoint_id_fkey" FOREIGN KEY (endpoint_id) REFERENCES endpoints(id)
+    "deliveries_event_id_fkey" FOREIGN KEY (event_id) REFERENCES events(id)
+Referenced by:
+    TABLE "attempts" CONSTRAINT "attempts_delivery_id_fkey" FOREIGN KEY (delivery_id) REFERENCES deliveries(id)
+
+                                Table "public.endpoints"
+           Column           |           Type           | Collation | Nullable | Default 
+----------------------------+--------------------------+-----------+----------+---------
+ id                         | uuid                     |           | not null | 
+ app_id                     | uuid                     |           | not null | 
+ customer_id                | text                     |           | not null | 
+ url                        | text                     |           | not null | 
+ event_types                | text[]                   |           | not null | 
+ secret                     | text                     |           | not null | 
+ previous_secret            | text                     |           |          | 
+ previous_secret_expires_at | timestamp with time zone |           |          | 
+ rate_limit_rps             | integer                  |           | not null | 
+ max_concurrency            | integer                  |           | not null | 
+ first_failure_at           | timestamp with time zone |           |          | 
+ disabled_at                | timestamp with time zone |           |          | 
+ disabled_reason            | endpoint_disabled_reason |           |          | 
+ created_at                 | timestamp with time zone |           | not null | 
+ updated_at                 | timestamp with time zone |           | not null | 
+ deleted_at                 | timestamp with time zone |           |          | 
+Indexes:
+    "endpoints_pkey" PRIMARY KEY, btree (id)
+    "endpoints_by_customer" btree (app_id, customer_id) WHERE deleted_at IS NULL
+Check constraints:
+    "endpoints_disabled_reason_iff_disabled" CHECK ((disabled_at IS NULL) = (disabled_reason IS NULL))
+    "endpoints_event_types_check" CHECK (cardinality(event_types) >= 1)
+    "endpoints_max_concurrency_check" CHECK (max_concurrency >= 1 AND max_concurrency <= 100)
+    "endpoints_previous_secret_has_expiry" CHECK ((previous_secret IS NULL) = (previous_secret_expires_at IS NULL))
+    "endpoints_rate_limit_rps_check" CHECK (rate_limit_rps >= 1 AND rate_limit_rps <= 1000)
+Foreign-key constraints:
+    "endpoints_app_id_fkey" FOREIGN KEY (app_id) REFERENCES apps(id)
+Referenced by:
+    TABLE "deliveries" CONSTRAINT "deliveries_endpoint_id_fkey" FOREIGN KEY (endpoint_id) REFERENCES endpoints(id)
+
+                           Table "public.events"
+    Column     |           Type           | Collation | Nullable | Default 
+---------------+--------------------------+-----------+----------+---------
+ id            | uuid                     |           | not null | 
+ app_id        | uuid                     |           | not null | 
+ customer_id   | text                     |           | not null | 
+ type          | text                     |           | not null | 
+ payload       | jsonb                    |           | not null | 
+ created_at    | timestamp with time zone |           | not null | 
+ dispatched_at | timestamp with time zone |           |          | 
+ requeued_at   | timestamp with time zone |           |          | 
+Indexes:
+    "events_pkey" PRIMARY KEY, btree (id)
+    "events_by_created" btree (created_at)
+    "events_by_customer" btree (app_id, customer_id, created_at DESC, id DESC)
+    "events_undispatched" btree (created_at) WHERE dispatched_at IS NULL
+Foreign-key constraints:
+    "events_app_id_fkey" FOREIGN KEY (app_id) REFERENCES apps(id)
+Referenced by:
+    TABLE "deliveries" CONSTRAINT "deliveries_event_id_fkey" FOREIGN KEY (event_id) REFERENCES events(id)
+    TABLE "idempotency_keys" CONSTRAINT "idempotency_keys_event_id_fkey" FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+    TABLE "outbox" CONSTRAINT "outbox_event_id_fkey" FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+
+                     Table "public.idempotency_keys"
+    Column    |           Type           | Collation | Nullable | Default 
+--------------+--------------------------+-----------+----------+---------
+ app_id       | uuid                     |           | not null | 
+ key          | text                     |           | not null | 
+ event_id     | uuid                     |           | not null | 
+ request_hash | bytea                    |           | not null | 
+ created_at   | timestamp with time zone |           | not null | 
+Indexes:
+    "idempotency_keys_pkey" PRIMARY KEY, btree (app_id, key)
+    "idempotency_keys_by_created" btree (created_at)
+    "idempotency_keys_by_event" btree (event_id)
+Check constraints:
+    "idempotency_keys_key_check" CHECK (char_length(key) >= 1 AND char_length(key) <= 255)
+Foreign-key constraints:
+    "idempotency_keys_app_id_fkey" FOREIGN KEY (app_id) REFERENCES apps(id)
+    "idempotency_keys_event_id_fkey" FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+
+                                    Table "public.outbox"
+   Column    |           Type           | Collation | Nullable |           Default            
+-------------+--------------------------+-----------+----------+------------------------------
+ id          | bigint                   |           | not null | generated always as identity
+ event_id    | uuid                     |           | not null | 
+ traceparent | text                     |           |          | 
+ created_at  | timestamp with time zone |           | not null | 
+Indexes:
+    "outbox_pkey" PRIMARY KEY, btree (id)
+    "outbox_event_id_key" UNIQUE CONSTRAINT, btree (event_id)
+Foreign-key constraints:
+    "outbox_event_id_fkey" FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+

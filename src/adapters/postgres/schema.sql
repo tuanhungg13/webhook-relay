@@ -110,9 +110,9 @@ CREATE TABLE public.attempts (
     response_snippet text,
     error public.attempt_error,
     CONSTRAINT attempts_attempt_number_check CHECK ((attempt_number >= 1)),
-    CONSTRAINT attempts_check CHECK (((http_status IS NULL) <> (error IS NULL))),
     CONSTRAINT attempts_duration_ms_check CHECK ((duration_ms >= 0)),
-    CONSTRAINT attempts_http_status_check CHECK (((http_status >= 100) AND (http_status <= 599)))
+    CONSTRAINT attempts_http_status_check CHECK (((http_status >= 100) AND (http_status <= 599))),
+    CONSTRAINT attempts_http_status_xor_error CHECK (((http_status IS NULL) <> (error IS NULL)))
 );
 
 
@@ -136,10 +136,10 @@ CREATE TABLE public.deliveries (
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     CONSTRAINT deliveries_attempt_count_check CHECK ((attempt_count >= 0)),
-    CONSTRAINT deliveries_check CHECK (((status = 'failed'::public.delivery_status) = (failed_reason IS NOT NULL))),
-    CONSTRAINT deliveries_check1 CHECK (((status = 'in_flight'::public.delivery_status) = (lease_token IS NOT NULL))),
-    CONSTRAINT deliveries_check2 CHECK (((lease_token IS NULL) = (lease_until IS NULL))),
-    CONSTRAINT deliveries_gate_blocked_count_check CHECK ((gate_blocked_count >= 0))
+    CONSTRAINT deliveries_failed_reason_iff_failed CHECK (((status = 'failed'::public.delivery_status) = (failed_reason IS NOT NULL))),
+    CONSTRAINT deliveries_gate_blocked_count_check CHECK ((gate_blocked_count >= 0)),
+    CONSTRAINT deliveries_lease_token_iff_in_flight CHECK (((status = 'in_flight'::public.delivery_status) = (lease_token IS NOT NULL))),
+    CONSTRAINT deliveries_lease_until_iff_lease_token CHECK (((lease_token IS NULL) = (lease_until IS NULL)))
 );
 
 
@@ -164,10 +164,10 @@ CREATE TABLE public.endpoints (
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,
-    CONSTRAINT endpoints_check CHECK (((disabled_at IS NULL) = (disabled_reason IS NULL))),
-    CONSTRAINT endpoints_check1 CHECK (((previous_secret IS NULL) = (previous_secret_expires_at IS NULL))),
+    CONSTRAINT endpoints_disabled_reason_iff_disabled CHECK (((disabled_at IS NULL) = (disabled_reason IS NULL))),
     CONSTRAINT endpoints_event_types_check CHECK ((cardinality(event_types) >= 1)),
     CONSTRAINT endpoints_max_concurrency_check CHECK (((max_concurrency >= 1) AND (max_concurrency <= 100))),
+    CONSTRAINT endpoints_previous_secret_has_expiry CHECK (((previous_secret IS NULL) = (previous_secret_expires_at IS NULL))),
     CONSTRAINT endpoints_rate_limit_rps_check CHECK (((rate_limit_rps >= 1) AND (rate_limit_rps <= 1000)))
 );
 

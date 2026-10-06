@@ -36,8 +36,8 @@ CREATE TABLE endpoints (
   created_at                 timestamptz NOT NULL,
   updated_at                 timestamptz NOT NULL,
   deleted_at                 timestamptz, -- soft delete: old deliveries still resolve their endpoint
-  CHECK ((disabled_at IS NULL) = (disabled_reason IS NULL)),
-  CHECK ((previous_secret IS NULL) = (previous_secret_expires_at IS NULL))
+  CONSTRAINT endpoints_disabled_reason_iff_disabled CHECK ((disabled_at IS NULL) = (disabled_reason IS NULL)),
+  CONSTRAINT endpoints_previous_secret_has_expiry CHECK ((previous_secret IS NULL) = (previous_secret_expires_at IS NULL))
 );
 -- Endpoints of a customer that are not soft-deleted (dispatcher lookup, API list, API-30 count).
 CREATE INDEX endpoints_by_customer ON endpoints (app_id, customer_id) WHERE deleted_at IS NULL;
@@ -95,9 +95,9 @@ CREATE TABLE deliveries (
   created_at         timestamptz NOT NULL,
   updated_at         timestamptz NOT NULL,
   UNIQUE (event_id, endpoint_id), -- DAT-10: makes fan-out idempotent
-  CHECK ((status = 'failed') = (failed_reason IS NOT NULL)),
-  CHECK ((status = 'in_flight') = (lease_token IS NOT NULL)),
-  CHECK ((lease_token IS NULL) = (lease_until IS NULL))
+  CONSTRAINT deliveries_failed_reason_iff_failed CHECK ((status = 'failed') = (failed_reason IS NOT NULL)),
+  CONSTRAINT deliveries_lease_token_iff_in_flight CHECK ((status = 'in_flight') = (lease_token IS NOT NULL)),
+  CONSTRAINT deliveries_lease_until_iff_lease_token CHECK ((lease_token IS NULL) = (lease_until IS NULL))
 );
 CREATE INDEX deliveries_by_endpoint ON deliveries (endpoint_id, status, created_at DESC, id DESC);
 CREATE INDEX deliveries_pending_due ON deliveries (next_attempt_at) WHERE status = 'pending';
@@ -117,5 +117,5 @@ CREATE TABLE attempts (
   response_snippet text,
   error            attempt_error,
   UNIQUE (delivery_id, attempt_number), -- DAT-11: two workers sending one delivery surfaces here
-  CHECK ((http_status IS NULL) <> (error IS NULL)) -- either an HTTP response or a transport error
+  CONSTRAINT attempts_http_status_xor_error CHECK ((http_status IS NULL) <> (error IS NULL)) -- either an HTTP response or a transport error
 );
