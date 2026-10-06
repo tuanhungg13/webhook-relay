@@ -20,4 +20,5 @@ Node.js ≥ 24.15, pnpm.
 | `pnpm db:up` · `pnpm db:down` | Bật / tắt Postgres local (`deploy/compose.yaml`) |
 | `DATABASE_URL=postgres://whr:whr@localhost:5432/whr pnpm db:migrate` | Build rồi chạy migration |
 | `pnpm test:integration` | Integration test trên Postgres thật (cần `pnpm db:up`) |
+| `pnpm build` rồi `DATABASE_URL=… pnpm admin <lệnh>` | Công cụ quản trị: `app create --name`, `key issue --app`, `key revoke --key`, `id decode`, `id encode --kind` (chạy không tham số để xem cách dùng) |
 | `pnpm db:schema` | Sinh lại `src/adapters/postgres/schema.sql` (ảnh chụp schema hiện tại) sau khi thêm migration |

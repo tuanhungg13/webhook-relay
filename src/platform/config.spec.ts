@@ -1,6 +1,6 @@
 import {
   loadApiConfig,
-  loadMigrateConfig,
+  loadDatabaseConfig,
   parseDurationMs,
   parseListenAddress,
 } from './config.js';
@@ -58,14 +58,14 @@ describe('loadApiConfig', () => {
   });
 });
 
-describe('loadMigrateConfig', () => {
+describe('loadDatabaseConfig', () => {
   it('requires DATABASE_URL', () => {
-    expect(() => loadMigrateConfig({})).toThrow(/DATABASE_URL/);
+    expect(() => loadDatabaseConfig({})).toThrow(/DATABASE_URL/);
   });
 
   it('accepts a postgres URL', () => {
     expect(
-      loadMigrateConfig({
+      loadDatabaseConfig({
         DATABASE_URL: 'postgres://whr:whr@localhost:5432/whr',
       }).DATABASE_URL,
     ).toBe('postgres://whr:whr@localhost:5432/whr');

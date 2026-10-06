@@ -1,26 +1,32 @@
 import pg from 'pg';
 import { runMigrations } from '../../adapters/postgres/migrator.js';
-import { loadMigrateConfig } from '../../platform/config.js';
+import { loadDatabaseConfig } from '../../platform/config.js';
 import { exitOnFatalErrors } from '../../platform/lifecycle.js';
 import { createLogger } from '../../platform/logger.js';
 
-/** One-shot process: apply pending migrations, then exit (the `migrate` service of spec 13). */
+/**
+ * Tiến trình chạy một lần: áp dụng các migration (file SQL đổi cấu trúc database) chưa chạy,
+ * rồi thoát. Đây là dịch vụ `migrate` ở spec 13.
+ */
 async function main(): Promise<void> {
-  const config = loadMigrateConfig(process.env);
+  // Đọc cấu hình; thiếu hoặc sai DATABASE_URL thì ném lỗi, dừng ngay.
+  const config = loadDatabaseConfig(process.env);
   const logger = createLogger({ mode: 'migrate', level: config.LOG_LEVEL });
   exitOnFatalErrors(logger);
 
+  // Migration chạy lần lượt từng file nên 1 kết nối là đủ.
   const pool = new pg.Pool({ connectionString: config.DATABASE_URL, max: 1 });
   try {
     const applied = await runMigrations(pool, logger);
     logger.info({ applied: applied.length }, 'migrations up to date');
   } finally {
+    // Luôn đóng kết nối, kể cả khi migration lỗi, để tiến trình thoát được.
     await pool.end();
   }
 }
 
 main().catch((error: unknown) => {
-  // The logger may not exist yet (e.g. invalid configuration), so report on stderr.
+  // Lúc lỗi, logger có thể chưa kịp tạo (vd cấu hình sai), nên in thẳng ra stderr.
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);
 });

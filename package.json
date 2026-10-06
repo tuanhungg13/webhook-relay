@@ -25,7 +25,8 @@
     "db:up": "docker compose -f deploy/compose.yaml up -d --wait postgres",
     "db:down": "docker compose -f deploy/compose.yaml down",
     "db:migrate": "nest build && node dist/apps/migrate/main.js",
-    "db:schema": "vitest run --config ./vitest.config.integration.ts --update schema-snapshot"
+    "db:schema": "vitest run --config ./vitest.config.integration.ts --update schema-snapshot",
+    "admin": "node dist/apps/admin/main.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
