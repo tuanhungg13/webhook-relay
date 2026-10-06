@@ -4,6 +4,7 @@
   "sourceRoot": "src",
   "entryFile": "apps/api/main",
   "compilerOptions": {
-    "deleteOutDir": true
+    "deleteOutDir": true,
+    "assets": ["adapters/postgres/migrations/*.sql"]
   }
 }

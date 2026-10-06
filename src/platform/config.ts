@@ -60,8 +60,13 @@ const apiSchema = commonSchema.extend({
   API_ADDR: listenAddress.default(parseListenAddress(':8080')),
 });
 
+const migrateSchema = commonSchema.extend({
+  DATABASE_URL: z.url(),
+});
+
 export type CommonConfig = z.infer<typeof commonSchema>;
 export type ApiConfig = z.infer<typeof apiSchema>;
+export type MigrateConfig = z.infer<typeof migrateSchema>;
 
 /** Fails fast with every invalid variable listed (DEP-10). */
 function load<T>(schema: z.ZodType<T>, env: NodeJS.ProcessEnv): T {
@@ -77,4 +82,8 @@ function load<T>(schema: z.ZodType<T>, env: NodeJS.ProcessEnv): T {
 
 export function loadApiConfig(env: NodeJS.ProcessEnv): ApiConfig {
   return load(apiSchema, env);
+}
+
+export function loadMigrateConfig(env: NodeJS.ProcessEnv): MigrateConfig {
+  return load(migrateSchema, env);
 }

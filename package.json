@@ -20,12 +20,18 @@
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "typecheck": "tsc --noEmit",
     "lint:arch": "depcruise src --config .dependency-cruiser.cjs",
-    "check": "pnpm typecheck && pnpm lint && pnpm lint:arch && pnpm test && pnpm test:e2e"
+    "check": "pnpm typecheck && pnpm lint && pnpm lint:arch && pnpm test && pnpm test:e2e",
+    "test:integration": "vitest run --config ./vitest.config.integration.ts",
+    "db:up": "docker compose -f deploy/compose.yaml up -d --wait postgres",
+    "db:down": "docker compose -f deploy/compose.yaml down",
+    "db:migrate": "nest build && node dist/apps/migrate/main.js",
+    "db:schema": "vitest run --config ./vitest.config.integration.ts --update schema-snapshot"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
     "@nestjs/core": "^12.0.1",
     "@nestjs/platform-express": "^12.0.1",
+    "pg": "^8.23.1",
     "pino": "^10.4.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
@@ -37,6 +43,7 @@
     "@nestjs/testing": "^12.0.1",
     "@types/express": "^5.0.0",
     "@types/node": "^24.0.0",
+    "@types/pg": "^8.23.1",
     "@types/supertest": "^7.0.0",
     "@vitest/coverage-v8": "^4.1.2",
     "dependency-cruiser": "^18.5.0",

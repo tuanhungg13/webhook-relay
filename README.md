@@ -17,3 +17,7 @@ Node.js ≥ 24.15, pnpm.
 | `pnpm build` · `pnpm start:prod` | Build và chạy bản build |
 | `pnpm check` | Typecheck + lint + lint ranh giới kiến trúc + unit test + e2e |
 | `pnpm lint:arch` | Chỉ kiểm tra ranh giới kiến trúc (ARCH-20) |
+| `pnpm db:up` · `pnpm db:down` | Bật / tắt Postgres local (`deploy/compose.yaml`) |
+| `DATABASE_URL=postgres://whr:whr@localhost:5432/whr pnpm db:migrate` | Build rồi chạy migration |
+| `pnpm test:integration` | Integration test trên Postgres thật (cần `pnpm db:up`) |
+| `pnpm db:schema` | Sinh lại `src/adapters/postgres/schema.sql` (ảnh chụp schema hiện tại) sau khi thêm migration |

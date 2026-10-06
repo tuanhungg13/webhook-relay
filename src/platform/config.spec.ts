@@ -1,5 +1,6 @@
 import {
   loadApiConfig,
+  loadMigrateConfig,
   parseDurationMs,
   parseListenAddress,
 } from './config.js';
@@ -54,5 +55,19 @@ describe('loadApiConfig', () => {
     ).toThrow(
       /LOG_LEVEL[\s\S]*SHUTDOWN_TIMEOUT|SHUTDOWN_TIMEOUT[\s\S]*LOG_LEVEL/,
     );
+  });
+});
+
+describe('loadMigrateConfig', () => {
+  it('requires DATABASE_URL', () => {
+    expect(() => loadMigrateConfig({})).toThrow(/DATABASE_URL/);
+  });
+
+  it('accepts a postgres URL', () => {
+    expect(
+      loadMigrateConfig({
+        DATABASE_URL: 'postgres://whr:whr@localhost:5432/whr',
+      }).DATABASE_URL,
+    ).toBe('postgres://whr:whr@localhost:5432/whr');
   });
 });
