@@ -21,6 +21,7 @@ Node.js ≥ 24.15, pnpm.
 | `ALLOW_INSECURE_HTTP` | `false` | `true` cho phép URL endpoint dùng `http` và cổng 80 (chỉ dev/test; bật thì log `warn` lúc khởi động) |
 | `ENDPOINTS_PER_CUSTOMER_MAX` | `20` | Số endpoint tối đa mỗi customer (API-30) |
 | `SECRET_ROTATION_GRACE` | `24h` | Secret cũ còn hiệu lực bao lâu sau khi xoay (SEC-22) |
+| `IDEMPOTENCY_TTL` | `24h` | Khóa idempotency của sự kiện có hiệu lực bao lâu; gửi lại cùng khóa sau đó tạo sự kiện mới (API-21). `api` và `reconciler` phải cùng giá trị |
 
 ## Lệnh
 

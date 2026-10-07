@@ -5,18 +5,18 @@ import { decodeCursor, encodeCursor, paginationQuery } from './pagination.js';
 describe('paginationQuery', () => {
   const schema = z.object(paginationQuery);
 
-  it('defaults limit to 50 and leaves cursor out', () => {
-    expect(schema.parse({})).toEqual({ limit: 50 });
+  it('defaults limit to 20 and leaves cursor out', () => {
+    expect(schema.parse({})).toEqual({ limit: 20 });
   });
 
   it.each([
     ['1', 1],
-    ['200', 200],
+    ['100', 100],
   ])('accepts limit=%s', (limit, expected) => {
     expect(schema.parse({ limit }).limit).toBe(expected);
   });
 
-  it.each(['0', '201', 'abc', '1.5', ''])('rejects limit=%j', (limit) => {
+  it.each(['0', '101', 'abc', '1.5', ''])('rejects limit=%j', (limit) => {
     expect(schema.safeParse({ limit }).success).toBe(false);
   });
 });

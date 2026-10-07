@@ -51,6 +51,7 @@ describe('loadApiConfig', () => {
       ALLOW_INSECURE_HTTP: false,
       ENDPOINTS_PER_CUSTOMER_MAX: 20,
       SECRET_ROTATION_GRACE: 86_400_000,
+      IDEMPOTENCY_TTL: 86_400_000,
       LOG_LEVEL: 'info',
       SHUTDOWN_TIMEOUT: 25_000,
       API_ADDR: { host: '0.0.0.0', port: 8080 },

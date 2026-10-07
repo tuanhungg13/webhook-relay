@@ -129,7 +129,7 @@ describe('endpoint API on real Postgres: lifecycle, listing, update', () => {
     const foreign = await api.create('cus_h8b', api.keyB);
     const response = await request(api.server())
       .get('/v1/endpoints')
-      .query({ limit: 200 })
+      .query({ limit: 100 })
       .set(auth(api.keyA))
       .expect(200);
     const ids = response.body.data.map((e: { id: string }) => e.id);
@@ -137,7 +137,7 @@ describe('endpoint API on real Postgres: lifecycle, listing, update', () => {
     expect(ids).not.toContain(foreign.id);
     expect(response.text).not.toContain('whsec_');
 
-    for (const query of [{ cursor: 'garbage' }, { limit: 0 }, { limit: 201 }]) {
+    for (const query of [{ cursor: 'garbage' }, { limit: 0 }, { limit: 101 }]) {
       const bad = await request(api.server())
         .get('/v1/endpoints')
         .query(query)

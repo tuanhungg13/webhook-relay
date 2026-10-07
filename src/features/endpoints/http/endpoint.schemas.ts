@@ -1,25 +1,24 @@
 import { z } from 'zod';
+import {
+  CUSTOMER_ID_PATTERN,
+  EVENT_TYPE_MAX_LENGTH,
+  EVENT_TYPE_PATTERN,
+} from '../../../core/event-fields.js';
 import { paginationQuery } from '../../../platform/http/pagination.js';
 
-/** `customer_id`: 1–128 ký tự gồm chữ, số và `. _ : -` (spec 05, gửi sự kiện). */
+/** `customer_id`: luật dùng chung với sự kiện, xem `core/event-fields.ts` (spec 05). */
 const customerId = z
   .string()
   .regex(
-    /^[A-Za-z0-9._:-]{1,128}$/,
+    CUSTOMER_ID_PATTERN,
     'must be 1-128 characters: letters, digits, . _ : -',
   );
 
-/**
- * Một loại sự kiện, vd `order.created`: 1–128 ký tự, các đoạn chữ thường/số/gạch dưới nối bằng
- * dấu chấm (spec 05). Regex: một đoạn, rồi lặp lại "dấu chấm + một đoạn" 0 hay nhiều lần.
- */
+/** Một loại sự kiện, vd `order.created`: luật dùng chung với sự kiện, xem `core/event-fields.ts`. */
 const eventType = z
   .string()
-  .max(128)
-  .regex(
-    /^[a-z0-9_]+(\.[a-z0-9_]+)*$/,
-    'must be dot-separated segments of a-z, 0-9, _',
-  );
+  .max(EVENT_TYPE_MAX_LENGTH)
+  .regex(EVENT_TYPE_PATTERN, 'must be dot-separated segments of a-z, 0-9, _');
 
 /** URL endpoint: ở đây chỉ kiểm là chuỗi; luật chi tiết nằm ở `core/endpoint-url.ts`. */
 const url = z.string();

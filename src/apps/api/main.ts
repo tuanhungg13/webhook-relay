@@ -28,8 +28,9 @@ async function main(): Promise<void> {
     maxPerCustomer: config.ENDPOINTS_PER_CUSTOMER_MAX,
     rotationGraceMs: config.SECRET_ROTATION_GRACE,
   };
+  const ingestion = { idempotencyTtlMs: config.IDEMPOTENCY_TTL };
   const app = await NestFactory.create(
-    ApiModule.register({ pool, logger, endpoints }),
+    ApiModule.register({ pool, logger, endpoints, ingestion }),
     { ...API_APP_OPTIONS, logger: new NestLogger(logger) },
   );
   configureApiApp(app, { logger, maxBodyBytes: config.MAX_BODY_BYTES });

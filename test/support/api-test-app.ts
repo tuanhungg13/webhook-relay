@@ -12,6 +12,7 @@ import type { Logger } from '../../src/platform/logger.js';
 import {
   ApiModule,
   type EndpointsConfig,
+  type IngestionConfig,
 } from '../../src/apps/api/api.module.js';
 import {
   API_APP_OPTIONS,
@@ -83,6 +84,11 @@ export const TEST_ENDPOINTS_CONFIG: EndpointsConfig = {
   rotationGraceMs: 86_400_000,
 };
 
+/** Cấu hình sự kiện dùng trong test: thời hạn khóa idempotency 24 giờ như mặc định. */
+export const TEST_INGESTION_CONFIG: IngestionConfig = {
+  idempotencyTtlMs: 86_400_000,
+};
+
 /**
  * Dựng app `api` giống `main` (cùng `configureApiApp`) cùng vài route chỉ dùng cho test.
  * `pool` do bên gọi tạo và đóng.
@@ -93,7 +99,12 @@ export async function createApiTestApp(
 ): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({
     imports: [
-      ApiModule.register({ pool, logger, endpoints: TEST_ENDPOINTS_CONFIG }),
+      ApiModule.register({
+        pool,
+        logger,
+        endpoints: TEST_ENDPOINTS_CONFIG,
+        ingestion: TEST_INGESTION_CONFIG,
+      }),
     ],
     controllers: [TestRoutesController],
   }).compile();

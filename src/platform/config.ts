@@ -120,6 +120,7 @@ const apiSchema = commonSchema
     ALLOW_INSECURE_HTTP: flag,
     ENDPOINTS_PER_CUSTOMER_MAX: positiveInt(DEFAULT_ENDPOINTS_PER_CUSTOMER_MAX),
     SECRET_ROTATION_GRACE: duration.default(parseDurationMs('24h')),
+    IDEMPOTENCY_TTL: duration.default(parseDurationMs('24h')),
     ...databaseFields(API_DEFAULT_POOL_SIZE),
   })
   .refine(
