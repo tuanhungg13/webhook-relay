@@ -40,20 +40,37 @@ describe('parseListenAddress', () => {
   });
 });
 
+const DATABASE_URL = 'postgres://whr:whr@localhost:5432/whr';
+
 describe('loadApiConfig', () => {
   it('applies defaults', () => {
-    expect(loadApiConfig({})).toEqual({
+    expect(loadApiConfig({ DATABASE_URL })).toEqual({
       LOG_LEVEL: 'info',
       SHUTDOWN_TIMEOUT: 25_000,
       API_ADDR: { host: '0.0.0.0', port: 8080 },
+      MAX_BODY_BYTES: 262_144,
+      DATABASE_URL,
+      DB_POOL_SIZE: 10,
+      DB_STATEMENT_TIMEOUT: 5_000,
+      DB_IDLE_TX_TIMEOUT: 30_000,
     });
+  });
+
+  it('requires DATABASE_URL', () => {
+    expect(() => loadApiConfig({})).toThrow(/DATABASE_URL/);
   });
 
   it('lists every invalid variable at once', () => {
     expect(() =>
-      loadApiConfig({ LOG_LEVEL: 'loud', SHUTDOWN_TIMEOUT: 'soon' }),
+      loadApiConfig({
+        DATABASE_URL,
+        LOG_LEVEL: 'loud',
+        SHUTDOWN_TIMEOUT: 'soon',
+        DB_POOL_SIZE: '0',
+        MAX_BODY_BYTES: 'abc',
+      }),
     ).toThrow(
-      /LOG_LEVEL[\s\S]*SHUTDOWN_TIMEOUT|SHUTDOWN_TIMEOUT[\s\S]*LOG_LEVEL/,
+      /(?=[\s\S]*LOG_LEVEL)(?=[\s\S]*SHUTDOWN_TIMEOUT)(?=[\s\S]*DB_POOL_SIZE)(?=[\s\S]*MAX_BODY_BYTES)/,
     );
   });
 });
@@ -61,6 +78,12 @@ describe('loadApiConfig', () => {
 describe('loadDatabaseConfig', () => {
   it('requires DATABASE_URL', () => {
     expect(() => loadDatabaseConfig({})).toThrow(/DATABASE_URL/);
+  });
+
+  it('defaults the pool to a single connection', () => {
+    const config = loadDatabaseConfig({ DATABASE_URL });
+    expect(config.DB_POOL_SIZE).toBe(1);
+    expect(config.DB_STATEMENT_TIMEOUT).toBe(5_000);
   });
 
   it('accepts a postgres URL', () => {

@@ -69,15 +69,38 @@ const commonSchema = z.object({
   SHUTDOWN_TIMEOUT: duration.default(parseDurationMs('25s')),
 });
 
-/** Cấu hình của tiến trình `api`: thêm địa chỉ lắng nghe HTTP (mặc định :8080). */
+/** Số nguyên >= 1 đọc từ biến môi trường (chuỗi), không đặt thì lấy `fallback`. */
+const positiveInt = (fallback: number) =>
+  z.coerce.number().int().min(1).default(fallback);
+
+/**
+ * Các biến kết nối Postgres dùng chung cho mọi tiến trình có database.
+ * `defaultPoolSize` khác nhau theo tiến trình: api cần nhiều kết nối, CLI chỉ cần 1.
+ * Timeout phía server giúp Postgres tự hủy câu lệnh chạy quá lâu (NODE-02).
+ */
+function databaseFields(defaultPoolSize: number) {
+  return {
+    DATABASE_URL: z.url(),
+    DB_POOL_SIZE: positiveInt(defaultPoolSize),
+    DB_STATEMENT_TIMEOUT: duration.default(parseDurationMs('5s')),
+    DB_IDLE_TX_TIMEOUT: duration.default(parseDurationMs('30s')),
+  };
+}
+
+/** Số kết nối Postgres mặc định của tiến trình `api`. */
+const API_DEFAULT_POOL_SIZE = 10;
+/** Mặc định của `MAX_BODY_BYTES`: 256 KiB. */
+const DEFAULT_MAX_BODY_BYTES = 262_144;
+
+/** Cấu hình của tiến trình `api`: địa chỉ lắng nghe (mặc định :8080), giới hạn body và Postgres. */
 const apiSchema = commonSchema.extend({
   API_ADDR: listenAddress.default(parseListenAddress(':8080')),
+  MAX_BODY_BYTES: positiveInt(DEFAULT_MAX_BODY_BYTES),
+  ...databaseFields(API_DEFAULT_POOL_SIZE),
 });
 
-/** Cấu hình của các tiến trình cần Postgres (`migrate`, `admin`): thêm DATABASE_URL, bắt buộc. */
-const databaseSchema = commonSchema.extend({
-  DATABASE_URL: z.url(),
-});
+/** Cấu hình của các tiến trình CLI cần Postgres (`migrate`, `admin`): pool mặc định 1 kết nối. */
+const databaseSchema = commonSchema.extend(databaseFields(1));
 
 /** Kiểu TypeScript của cấu hình, suy ra tự động từ schema tương ứng ở trên. */
 export type CommonConfig = z.infer<typeof commonSchema>;

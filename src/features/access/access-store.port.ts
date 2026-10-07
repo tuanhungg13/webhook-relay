@@ -33,4 +33,17 @@ export interface AccessStore {
    * Key không tồn tại thì trả về null.
    */
   revokeApiKey(id: Id<'apiKey'>, at: Date): Promise<Date | null>;
+
+  /**
+   * Tìm key CÒN HIỆU LỰC theo hash SHA-256 của nó (API-02).
+   * Key đã thu hồi hoặc không có thì đều trả về null: bên gọi không được phân biệt hai trường hợp (API-03).
+   */
+  findActiveKeyByHash(hash: Buffer): Promise<ActiveApiKey | null>;
+}
+
+/** Thông tin của một key còn hiệu lực: ID key, app sở hữu nó và prefix (8 ký tự đầu, dùng khi log). */
+export interface ActiveApiKey {
+  keyId: Id<'apiKey'>;
+  appId: Id<'app'>;
+  prefix: string;
 }

@@ -8,12 +8,22 @@ Hệ thống trung gian nhận sự kiện và gửi webhook tin cậy (at-least
 ## Yêu cầu
 Node.js ≥ 24.15, pnpm.
 
+## Biến môi trường của `api` và công cụ có Postgres
+
+| Biến | Mặc định | Ý nghĩa |
+|---|---|---|
+| `DATABASE_URL` | bắt buộc | Chuỗi kết nối Postgres |
+| `DB_POOL_SIZE` | `10` (`api`), `1` (`admin`, `migrate`) | Số kết nối tối đa của pool |
+| `DB_STATEMENT_TIMEOUT` | `5s` | Postgres hủy câu lệnh chạy quá lâu (NODE-02); migration chạy lâu cần đặt lớn hơn |
+| `DB_IDLE_TX_TIMEOUT` | `30s` | Postgres hủy transaction bỏ dở |
+| `MAX_BODY_BYTES` | `262144` | Giới hạn body của `api` (chỉ `api`) |
+
 ## Lệnh
 
 | Lệnh | Việc |
 |---|---|
 | `pnpm install` | Cài dependency |
-| `pnpm start:dev` | Chạy tiến trình `api` ở chế độ watch |
+| `DATABASE_URL=postgres://whr:whr@localhost:5432/whr pnpm start:dev` | Chạy tiến trình `api` ở chế độ watch (cần Postgres) |
 | `pnpm build` · `pnpm start:prod` | Build và chạy bản build |
 | `pnpm check` | Typecheck + lint + lint ranh giới kiến trúc + unit test + e2e |
 | `pnpm lint:arch` | Chỉ kiểm tra ranh giới kiến trúc (ARCH-20) |

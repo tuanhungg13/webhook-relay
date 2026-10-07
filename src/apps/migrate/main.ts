@@ -1,5 +1,5 @@
-import pg from 'pg';
 import { runMigrations } from '../../adapters/postgres/migrator.js';
+import { createPool } from '../../adapters/postgres/pool.js';
 import { loadDatabaseConfig } from '../../platform/config.js';
 import { exitOnFatalErrors } from '../../platform/lifecycle.js';
 import { createLogger } from '../../platform/logger.js';
@@ -14,8 +14,9 @@ async function main(): Promise<void> {
   const logger = createLogger({ mode: 'migrate', level: config.LOG_LEVEL });
   exitOnFatalErrors(logger);
 
-  // Migration chạy lần lượt từng file nên 1 kết nối là đủ.
-  const pool = new pg.Pool({ connectionString: config.DATABASE_URL, max: 1 });
+  // Migration chạy lần lượt từng file nên pool mặc định 1 kết nối là đủ. Migration chạy lâu
+  // (vd tạo chỉ mục bảng lớn) cần đặt DB_STATEMENT_TIMEOUT lớn hơn cho lần chạy đó.
+  const pool = createPool(config, logger);
   try {
     const applied = await runMigrations(pool, logger);
     logger.info({ applied: applied.length }, 'migrations up to date');

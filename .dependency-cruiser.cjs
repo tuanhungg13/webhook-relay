@@ -62,8 +62,22 @@ module.exports = {
       name: 'platform-no-business',
       comment: 'ARCH table: platform is technical only and imports no other area.',
       severity: 'error',
-      from: { path: '^src/platform/' },
+      from: { path: '^src/platform/', pathNot: '^src/platform/http/' },
       to: { path: '^src/(core|features|adapters|apps)/' },
+    },
+    {
+      name: 'platform-http-no-other-areas',
+      comment: 'D-20: platform/http imports no area except core types.',
+      severity: 'error',
+      from: { path: '^src/platform/http/' },
+      to: { path: '^src/(features|adapters|apps)/' },
+    },
+    {
+      name: 'platform-http-no-runtime-core',
+      comment: 'D-20: imports from core inside platform/http must be `import type`.',
+      severity: 'error',
+      from: { path: '^src/platform/http/' },
+      to: { path: '^src/core/', dependencyTypesNot: ['type-only'] },
     },
     {
       name: 'apps-no-cross-app',
@@ -74,9 +88,9 @@ module.exports = {
     },
     {
       name: 'framework-only-in-http-and-apps',
-      comment: 'ARCH-11: NestJS may appear only in features/*/http and apps.',
+      comment: 'ARCH-11: NestJS may appear only in features/*/http, platform/http (D-20) and apps.',
       severity: 'error',
-      from: { path: '^src/', pathNot: ['^src/apps/', '^src/features/[^/]+/http/', NOT_TESTS] },
+      from: { path: '^src/', pathNot: ['^src/apps/', '^src/features/[^/]+/http/', '^src/platform/http/', NOT_TESTS] },
       to: { path: '@nestjs/' },
     },
     {

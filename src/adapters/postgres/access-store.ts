@@ -1,6 +1,9 @@
 import type pg from 'pg';
-import { type Id, idToUuid } from '../../core/id.js';
-import type { AccessStore } from '../../features/access/access-store.port.js';
+import { type Id, idFromUuid, idToUuid } from '../../core/id.js';
+import type {
+  AccessStore,
+  ActiveApiKey,
+} from '../../features/access/access-store.port.js';
 
 /**
  * Hiện thực port `AccessStore` bằng Postgres: đọc/ghi bảng `apps` và `api_keys`.
@@ -70,5 +73,28 @@ export class PostgresAccessStore implements AccessStore {
       [idToUuid(id), at],
     );
     return rows[0]?.revoked_at ?? null;
+  }
+
+  /** Tìm key còn hiệu lực theo hash. Không có dòng nào khớp thì trả về null. */
+  async findActiveKeyByHash(hash: Buffer): Promise<ActiveApiKey | null> {
+    // key_hash có ràng buộc UNIQUE nên đã có chỉ mục: tra theo hash chỉ chạm một dòng.
+    // `revoked_at IS NULL` loại key đã thu hồi (NULL nghĩa là chưa bị thu hồi).
+    const { rows } = await this.pool.query<{
+      id: string;
+      app_id: string;
+      prefix: string;
+    }>(
+      `SELECT id, app_id, prefix FROM api_keys
+       WHERE key_hash = $1 AND revoked_at IS NULL`,
+      [hash],
+    );
+    const row = rows[0];
+    if (!row) return null;
+    // Database lưu UUID; đổi sang TypeID trước khi đưa lên tầng trên (DAT-03).
+    return {
+      keyId: idFromUuid('apiKey', row.id),
+      appId: idFromUuid('app', row.app_id),
+      prefix: row.prefix,
+    };
   }
 }

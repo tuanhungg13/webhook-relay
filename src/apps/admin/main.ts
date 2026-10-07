@@ -1,5 +1,5 @@
-import pg from 'pg';
 import { PostgresAccessStore } from '../../adapters/postgres/access-store.js';
+import { createPool } from '../../adapters/postgres/pool.js';
 import { systemClock } from '../../platform/clock.js';
 import { loadDatabaseConfig } from '../../platform/config.js';
 import { exitOnFatalErrors } from '../../platform/lifecycle.js';
@@ -16,10 +16,12 @@ async function main(): Promise<void> {
   // Đọc cấu hình từ biến môi trường; thiếu hoặc sai DATABASE_URL thì ném lỗi, dừng ngay.
   const config = loadDatabaseConfig(process.env);
   // Lỗi không ai bắt được thì ghi log rồi thoát, không để tiến trình chạy tiếp trong trạng thái hỏng.
-  exitOnFatalErrors(createLogger({ mode: 'admin', level: config.LOG_LEVEL }));
+  const logger = createLogger({ mode: 'admin', level: config.LOG_LEVEL });
+  exitOnFatalErrors(logger);
 
-  // Pool = nhóm kết nối tới Postgres. CLI chạy một lệnh rồi thoát nên chỉ cần 1 kết nối.
-  const pool = new pg.Pool({ connectionString: config.DATABASE_URL, max: 1 });
+  // Pool = nhóm kết nối tới Postgres, có timeout (NODE-02). CLI chạy một lệnh rồi thoát nên
+  // pool mặc định chỉ 1 kết nối (DB_POOL_SIZE).
+  const pool = createPool(config, logger);
   try {
     // process.argv = ['node', 'main.js', ...các từ người dùng gõ]; slice(2) bỏ hai phần tử đầu.
     const output = await runAdminCli(process.argv.slice(2), {
