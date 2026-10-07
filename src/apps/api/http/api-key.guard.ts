@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import { AuthenticateApiKey } from '../../../features/access/authenticate-api-key.use-case.js';
+import { AuthenticateApiKey } from '../../../features/access/use-cases/authenticate-api-key.use-case.js';
 import { ApiError } from '../../../platform/http/api-error.js';
 import { attachAuthenticatedApp } from '../../../platform/http/current-app.js';
 import { IS_PUBLIC } from './public.js';

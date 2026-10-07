@@ -9,6 +9,8 @@ const NOW = new Date('2026-10-06T12:00:00Z');
 const UNIQUE_VIOLATION = '23505';
 const CHECK_VIOLATION = '23514';
 const FOREIGN_KEY_VIOLATION = '23503';
+/** Mọi file migration hiện có, theo thứ tự áp dụng. */
+const ALL_MIGRATIONS = ['0001_init.sql', '0002_endpoints_by_app.sql'];
 
 describe('postgres migrations', () => {
   let db: Awaited<ReturnType<typeof createTestDatabase>>;
@@ -25,7 +27,7 @@ describe('postgres migrations', () => {
   });
 
   it('applies every migration once and is a no-op when run again', async () => {
-    expect(await runMigrations(pool, logger)).toEqual(['0001_init.sql']);
+    expect(await runMigrations(pool, logger)).toEqual(ALL_MIGRATIONS);
     expect(await runMigrations(pool, logger)).toEqual([]);
   });
 
@@ -37,7 +39,7 @@ describe('postgres migrations', () => {
         runMigrations(freshPool, logger),
         runMigrations(freshPool, logger),
       ]);
-      expect(results.flat()).toEqual(['0001_init.sql']);
+      expect(results.flat()).toEqual(ALL_MIGRATIONS);
     } finally {
       await freshPool.end();
       await fresh.drop();

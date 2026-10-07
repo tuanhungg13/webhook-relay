@@ -1,6 +1,6 @@
 import { generateApiKey } from '../../src/core/api-key.js';
 import { newId } from '../../src/core/id.js';
-import type { AccessStore } from '../../src/features/access/access-store.port.js';
+import type { AccessStore } from '../../src/features/access/ports/access-store.port.js';
 
 /** Bản `AccessStore` cần kiểm, kèm hàm dọn dẹp (đóng pool, xóa database...) nếu có. */
 export interface AccessStoreHarness {

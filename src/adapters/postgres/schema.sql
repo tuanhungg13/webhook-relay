@@ -353,6 +353,13 @@ CREATE INDEX deliveries_pending_due ON public.deliveries USING btree (next_attem
 
 
 --
+-- Name: endpoints_by_app; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX endpoints_by_app ON public.endpoints USING btree (app_id, id DESC) WHERE (deleted_at IS NULL);
+
+
+--
 -- Name: endpoints_by_customer; Type: INDEX; Schema: public; Owner: -
 --
 

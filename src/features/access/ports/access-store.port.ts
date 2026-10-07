@@ -1,4 +1,4 @@
-import type { Id } from '../../core/id.js';
+import type { Id } from '../../../core/id.js';
 
 /**
  * Các thao tác đọc/ghi dữ liệu mà use case quản lý app và API key cần.

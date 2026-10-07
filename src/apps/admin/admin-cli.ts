@@ -6,10 +6,10 @@ import {
   idToUuid,
   parseId,
 } from '../../core/id.js';
-import type { AccessStore } from '../../features/access/access-store.port.js';
-import { CreateApp } from '../../features/access/create-app.use-case.js';
-import { IssueApiKey } from '../../features/access/issue-api-key.use-case.js';
-import { RevokeApiKey } from '../../features/access/revoke-api-key.use-case.js';
+import type { AccessStore } from '../../features/access/ports/access-store.port.js';
+import { CreateApp } from '../../features/access/use-cases/create-app.use-case.js';
+import { IssueApiKey } from '../../features/access/use-cases/issue-api-key.use-case.js';
+import { RevokeApiKey } from '../../features/access/use-cases/revoke-api-key.use-case.js';
 import type { Clock } from '../../platform/clock.js';
 
 /** Hướng dẫn sử dụng, được in ra khi người dùng gõ sai hoặc thiếu lệnh. */

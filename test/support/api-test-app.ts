@@ -9,7 +9,10 @@ import { Test } from '@nestjs/testing';
 import type pg from 'pg';
 import { pino } from 'pino';
 import type { Logger } from '../../src/platform/logger.js';
-import { ApiModule } from '../../src/apps/api/api.module.js';
+import {
+  ApiModule,
+  type EndpointsConfig,
+} from '../../src/apps/api/api.module.js';
 import {
   API_APP_OPTIONS,
   configureApiApp,
@@ -73,6 +76,13 @@ export function memoryLogger(): {
   };
 }
 
+/** Cấu hình endpoint dùng trong test: giống mặc định của `loadApiConfig`, chỉ dùng https. */
+export const TEST_ENDPOINTS_CONFIG: EndpointsConfig = {
+  allowInsecureHttp: false,
+  maxPerCustomer: 20,
+  rotationGraceMs: 86_400_000,
+};
+
 /**
  * Dựng app `api` giống `main` (cùng `configureApiApp`) cùng vài route chỉ dùng cho test.
  * `pool` do bên gọi tạo và đóng.
@@ -82,7 +92,9 @@ export async function createApiTestApp(
   logger: Logger,
 ): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({
-    imports: [ApiModule.register({ pool, logger })],
+    imports: [
+      ApiModule.register({ pool, logger, endpoints: TEST_ENDPOINTS_CONFIG }),
+    ],
     controllers: [TestRoutesController],
   }).compile();
   const app = moduleRef.createNestApplication({

@@ -1,6 +1,6 @@
-import { generateApiKey } from '../../core/api-key.js';
-import { newId } from '../../core/id.js';
-import { InMemoryAccessStore } from '../../../test/fakes/in-memory-access-store.js';
+import { generateApiKey } from '../../../core/api-key.js';
+import { newId } from '../../../core/id.js';
+import { InMemoryAccessStore } from '../../../../test/fakes/in-memory-access-store.js';
 import { AuthenticateApiKey } from './authenticate-api-key.use-case.js';
 
 describe('AuthenticateApiKey', () => {

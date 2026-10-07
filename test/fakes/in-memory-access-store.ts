@@ -2,7 +2,7 @@ import type { Id } from '../../src/core/id.js';
 import type {
   AccessStore,
   ActiveApiKey,
-} from '../../src/features/access/access-store.port.js';
+} from '../../src/features/access/ports/access-store.port.js';
 
 /** Một dòng key trong bộ nhớ: giống bảng `api_keys`, thêm `revokedAt` (null = còn hiệu lực). */
 interface StoredKey extends ActiveApiKey {

@@ -1,6 +1,6 @@
-import { hashApiKey } from '../../core/api-key.js';
-import type { AuthenticatedApp } from '../../platform/http/current-app.js';
-import type { AccessStore } from './access-store.port.js';
+import { hashApiKey } from '../../../core/api-key.js';
+import type { AuthenticatedApp } from '../../../platform/http/current-app.js';
+import type { AccessStore } from '../ports/access-store.port.js';
 
 /**
  * Use case: xác thực một API key mà App gửi lên (API-02).

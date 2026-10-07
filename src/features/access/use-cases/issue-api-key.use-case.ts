@@ -1,7 +1,7 @@
-import { generateApiKey } from '../../core/api-key.js';
-import { type Id, newId } from '../../core/id.js';
-import type { Clock } from '../../platform/clock.js';
-import type { AccessStore } from './access-store.port.js';
+import { generateApiKey } from '../../../core/api-key.js';
+import { type Id, newId } from '../../../core/id.js';
+import type { Clock } from '../../../platform/clock.js';
+import type { AccessStore } from '../ports/access-store.port.js';
 
 /**
  * Kết quả cấp key, là một trong hai trường hợp, phân biệt bằng `status`:

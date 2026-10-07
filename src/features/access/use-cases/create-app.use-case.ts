@@ -1,6 +1,6 @@
-import { type Id, newId } from '../../core/id.js';
-import type { Clock } from '../../platform/clock.js';
-import type { AccessStore } from './access-store.port.js';
+import { type Id, newId } from '../../../core/id.js';
+import type { Clock } from '../../../platform/clock.js';
+import type { AccessStore } from '../ports/access-store.port.js';
 
 /**
  * Use case: tạo một app mới. App là khách hàng dùng hệ thống, vd "ShopX".

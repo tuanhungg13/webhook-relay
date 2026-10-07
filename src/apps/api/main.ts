@@ -14,12 +14,24 @@ async function main(): Promise<void> {
   const config = loadApiConfig(process.env);
   const logger = createLogger({ mode: 'api', level: config.LOG_LEVEL });
   exitOnFatalErrors(logger);
+  // Chỉ dùng cho dev/test; production đã bị chặn ở bước đọc cấu hình (SEC-05).
+  if (config.ALLOW_INSECURE_HTTP) {
+    logger.warn(
+      { app_env: config.APP_ENV },
+      'ALLOW_INSECURE_HTTP is enabled: endpoints may use plain http',
+    );
+  }
 
   const pool = createPool(config, logger);
-  const app = await NestFactory.create(ApiModule.register({ pool, logger }), {
-    ...API_APP_OPTIONS,
-    logger: new NestLogger(logger),
-  });
+  const endpoints = {
+    allowInsecureHttp: config.ALLOW_INSECURE_HTTP,
+    maxPerCustomer: config.ENDPOINTS_PER_CUSTOMER_MAX,
+    rotationGraceMs: config.SECRET_ROTATION_GRACE,
+  };
+  const app = await NestFactory.create(
+    ApiModule.register({ pool, logger, endpoints }),
+    { ...API_APP_OPTIONS, logger: new NestLogger(logger) },
+  );
   configureApiApp(app, { logger, maxBodyBytes: config.MAX_BODY_BYTES });
   // Đóng nhận request trước, rồi mới đóng pool: request đang chạy còn cần kết nối.
   shutdownGracefully(

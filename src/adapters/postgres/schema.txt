@@ -115,6 +115,7 @@ Referenced by:
  deleted_at                 | timestamp with time zone |           |          | 
 Indexes:
     "endpoints_pkey" PRIMARY KEY, btree (id)
+    "endpoints_by_app" btree (app_id, id DESC) WHERE deleted_at IS NULL
     "endpoints_by_customer" btree (app_id, customer_id) WHERE deleted_at IS NULL
 Check constraints:
     "endpoints_disabled_reason_iff_disabled" CHECK ((disabled_at IS NULL) = (disabled_reason IS NULL))

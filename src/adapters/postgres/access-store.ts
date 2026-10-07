@@ -3,7 +3,7 @@ import { type Id, idFromUuid, idToUuid } from '../../core/id.js';
 import type {
   AccessStore,
   ActiveApiKey,
-} from '../../features/access/access-store.port.js';
+} from '../../features/access/ports/access-store.port.js';
 
 /**
  * Hiện thực port `AccessStore` bằng Postgres: đọc/ghi bảng `apps` và `api_keys`.

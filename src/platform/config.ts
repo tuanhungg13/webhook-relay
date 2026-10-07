@@ -92,12 +92,45 @@ const API_DEFAULT_POOL_SIZE = 10;
 /** Mặc định của `MAX_BODY_BYTES`: 256 KiB. */
 const DEFAULT_MAX_BODY_BYTES = 262_144;
 
-/** Cấu hình của tiến trình `api`: địa chỉ lắng nghe (mặc định :8080), giới hạn body và Postgres. */
-const apiSchema = commonSchema.extend({
-  API_ADDR: listenAddress.default(parseListenAddress(':8080')),
-  MAX_BODY_BYTES: positiveInt(DEFAULT_MAX_BODY_BYTES),
-  ...databaseFields(API_DEFAULT_POOL_SIZE),
-});
+/** Mặc định của `ENDPOINTS_PER_CUSTOMER_MAX` (API-30). */
+const DEFAULT_ENDPOINTS_PER_CUSTOMER_MAX = 20;
+
+/**
+ * Kiểu zod cho biến bật/tắt: chỉ nhận đúng chuỗi `'true'` hoặc `'false'`.
+ * Không dùng `z.coerce.boolean()` vì nó đổi mọi chuỗi khác rỗng, kể cả `"false"`, thành `true`.
+ */
+const flag = z
+  .enum(['true', 'false'])
+  .default('false')
+  .transform((value) => value === 'true');
+
+/**
+ * Cấu hình của tiến trình `api`: môi trường chạy, địa chỉ lắng nghe (mặc định :8080), giới hạn
+ * body, Postgres và các giới hạn của endpoint.
+ *
+ * Luật chéo SEC-05: `APP_ENV=production` mà bật `ALLOW_INSECURE_HTTP` thì từ chối khởi động.
+ * `when: () => true` bắt zod chạy luật này cả khi biến khác đã sai, để lỗi nằm chung một danh
+ * sách (DEP-10); mặc định zod bỏ qua refine khi object đã có lỗi.
+ */
+const apiSchema = commonSchema
+  .extend({
+    APP_ENV: z.enum(['development', 'test', 'production']),
+    API_ADDR: listenAddress.default(parseListenAddress(':8080')),
+    MAX_BODY_BYTES: positiveInt(DEFAULT_MAX_BODY_BYTES),
+    ALLOW_INSECURE_HTTP: flag,
+    ENDPOINTS_PER_CUSTOMER_MAX: positiveInt(DEFAULT_ENDPOINTS_PER_CUSTOMER_MAX),
+    SECRET_ROTATION_GRACE: duration.default(parseDurationMs('24h')),
+    ...databaseFields(API_DEFAULT_POOL_SIZE),
+  })
+  .refine(
+    (config) =>
+      !(config.APP_ENV === 'production' && config.ALLOW_INSECURE_HTTP),
+    {
+      path: ['ALLOW_INSECURE_HTTP'],
+      message: 'must not be true when APP_ENV is production (SEC-05)',
+      when: () => true,
+    },
+  );
 
 /** Cấu hình của các tiến trình CLI cần Postgres (`migrate`, `admin`): pool mặc định 1 kết nối. */
 const databaseSchema = commonSchema.extend(databaseFields(1));

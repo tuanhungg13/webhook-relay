@@ -1,6 +1,6 @@
 import type { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { AuthenticateApiKey } from '../../../features/access/authenticate-api-key.use-case.js';
+import type { AuthenticateApiKey } from '../../../features/access/use-cases/authenticate-api-key.use-case.js';
 import { ApiError } from '../../../platform/http/api-error.js';
 import { ApiKeyGuard, extractBearerKey } from './api-key.guard.js';
 

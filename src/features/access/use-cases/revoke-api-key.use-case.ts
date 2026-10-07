@@ -1,6 +1,6 @@
-import type { Id } from '../../core/id.js';
-import type { Clock } from '../../platform/clock.js';
-import type { AccessStore } from './access-store.port.js';
+import type { Id } from '../../../core/id.js';
+import type { Clock } from '../../../platform/clock.js';
+import type { AccessStore } from '../ports/access-store.port.js';
 
 /** Kết quả thu hồi key: đã thu hồi (kèm thời điểm thu hồi), hoặc không tìm thấy key. */
 export type RevokeApiKeyResult =
