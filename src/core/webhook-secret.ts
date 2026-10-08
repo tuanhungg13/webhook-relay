@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 
 /** Tiền tố của mọi webhook secret: "whsec_" (webhook secret), nhìn vào là biết đây là bí mật. */
-const SECRET_PREFIX = 'whsec_';
+export const SECRET_PREFIX = 'whsec_';
 /** Số byte ngẫu nhiên của secret: 32 byte = 256 bit (SEC-20). */
 const SECRET_RANDOM_BYTES = 32;
 
