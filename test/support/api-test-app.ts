@@ -8,6 +8,7 @@ import {
 import { Test } from '@nestjs/testing';
 import type pg from 'pg';
 import { pino } from 'pino';
+import { FakeHostResolver } from '../fakes/fake-host-resolver.js';
 import type { Logger } from '../../src/platform/logger.js';
 import {
   ApiModule,
@@ -103,6 +104,8 @@ export async function createApiTestApp(
         pool,
         logger,
         endpoints: TEST_ENDPOINTS_CONFIG,
+        // Không gọi DNS thật trong test: tên miền nào cũng ra một IP công cộng.
+        hostCheck: { resolver: new FakeHostResolver(), allowlist: [] },
         ingestion: TEST_INGESTION_CONFIG,
       }),
     ],

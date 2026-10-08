@@ -59,6 +59,8 @@ describe('endpoint API on real Postgres: create, validation, isolation', () => {
   it.each([
     ['http URL', { url: 'http://shop.example/hook' }, 'url'],
     ['port 25', { url: 'https://shop.example:25/hook' }, 'url'],
+    ['loopback IP (SSRF)', { url: 'https://127.0.0.1/h' }, 'url'],
+    ['metadata IP (SSRF)', { url: 'https://169.254.169.254/h' }, 'url'],
     ['credentials', { url: 'https://user:hunter2@shop.example/h' }, 'url'],
     ['empty event_types', { event_types: [] }, 'event_types'],
     ['51 event_types', { event_types: Array(51).fill('a.b') }, 'event_types'],

@@ -3,6 +3,7 @@
  * A violation fails `pnpm lint:arch`, and therefore `pnpm check`.
  */
 const NOT_TESTS = '\\.(spec|e2e-spec)\\.ts$';
+const IPADDR = 'node_modules/ipaddr\\.js/';
 const IO_CORE_MODULES =
   '^(node:)?(net|http|https|http2|tls|dgram|dns|dns/promises|fs|fs/promises|child_process|cluster|worker_threads)$';
 
@@ -21,7 +22,18 @@ module.exports = {
       comment: 'ARCH-10: core is pure; no npm packages (framework, DB/Redis clients...).',
       severity: 'error',
       from: { path: '^src/core/', pathNot: NOT_TESTS },
-      to: { dependencyTypes: ['npm', 'npm-dev', 'npm-optional', 'npm-peer', 'npm-no-pkg', 'npm-unknown'] },
+      to: {
+        dependencyTypes: ['npm', 'npm-dev', 'npm-optional', 'npm-peer', 'npm-no-pkg', 'npm-unknown'],
+        // Ngoại lệ duy nhất (spec/02 ARCH-24): ip-policy.ts dùng thư viện thuần ipaddr.js.
+        pathNot: IPADDR,
+      },
+    },
+    {
+      name: 'core-ipaddr-only-in-ip-policy',
+      comment: 'ARCH-24: ipaddr.js is allowed in core only for core/ip-policy.ts.',
+      severity: 'error',
+      from: { path: '^src/core/', pathNot: ['^src/core/ip-policy\\.ts$', NOT_TESTS] },
+      to: { path: IPADDR },
     },
     {
       name: 'core-no-io-modules',

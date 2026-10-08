@@ -161,6 +161,7 @@ describe('endpoint API on real Postgres: lifecycle, listing, update', () => {
       {},
       { url: null },
       { url: 'https://shop.example:22/h' },
+      { url: 'https://10.0.0.5/h' },
     ]) {
       const response = await patch(body).expect(422);
       expect(response.body.error.code).toBe('validation_failed');

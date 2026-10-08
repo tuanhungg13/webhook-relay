@@ -5,6 +5,7 @@ import { PostgresAccessStore } from '../../adapters/postgres/access-store.js';
 import { PostgresEndpointStore } from '../../adapters/postgres/endpoint-store.js';
 import { PostgresEventStore } from '../../adapters/postgres/event-store.js';
 import { AuthenticateApiKey } from '../../features/access/use-cases/authenticate-api-key.use-case.js';
+import { type HostCheckDeps } from '../../features/endpoints/use-cases/check-endpoint-host.js';
 import { CreateEndpoint } from '../../features/endpoints/use-cases/create-endpoint.use-case.js';
 import { DeleteEndpoint } from '../../features/endpoints/use-cases/delete-endpoint.use-case.js';
 import { DisableEndpoint } from '../../features/endpoints/use-cases/disable-endpoint.use-case.js';
@@ -53,6 +54,8 @@ export interface ApiModuleOptions {
   pool: pg.Pool;
   logger: Logger;
   endpoints: EndpointsConfig;
+  /** Bộ phân giải DNS và `SSRF_ALLOWLIST` đã parse, để chặn endpoint trỏ vào IP nội bộ. */
+  hostCheck: HostCheckDeps;
   ingestion: IngestionConfig;
 }
 
@@ -84,7 +87,12 @@ export class ApiModule {
         },
         {
           provide: ENDPOINT_USE_CASES,
-          useFactory: () => endpointUseCases(options.pool, options.endpoints),
+          useFactory: () =>
+            endpointUseCases(
+              options.pool,
+              options.endpoints,
+              options.hostCheck,
+            ),
         },
         {
           provide: INGESTION_USE_CASES,
@@ -100,13 +108,14 @@ export class ApiModule {
 function endpointUseCases(
   pool: pg.Pool,
   config: EndpointsConfig,
+  hostCheck: HostCheckDeps,
 ): EndpointUseCases {
   const store = new PostgresEndpointStore(pool);
   return {
-    create: new CreateEndpoint(store, systemClock, config),
+    create: new CreateEndpoint(store, systemClock, config, hostCheck),
     get: new GetEndpoint(store),
     list: new ListEndpoints(store),
-    update: new UpdateEndpoint(store, systemClock, config),
+    update: new UpdateEndpoint(store, systemClock, config, hostCheck),
     delete: new DeleteEndpoint(store, systemClock),
     disable: new DisableEndpoint(store, systemClock),
     enable: new EnableEndpoint(store, systemClock),

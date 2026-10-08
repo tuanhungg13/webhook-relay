@@ -104,11 +104,32 @@ const flag = z
   .default('false')
   .transform((value) => value === 'true');
 
+/** Dạng sơ bộ của một phần tử CIDR (`10.0.0.0/8`, `fd00::/8`); parse đầy đủ nằm ở `core/ip-policy`. */
+const CIDR_ITEM_PATTERN = /^[0-9a-fA-F:.]+\/\d{1,3}$/;
+
+/**
+ * Kiểu zod cho `SSRF_ALLOWLIST`: danh sách CIDR cách nhau bởi dấu phẩy, giữ nguyên dạng chuỗi
+ * (`platform` không import `core`; `apps` mới đổi ra `Cidr[]` và bắt phần tử sai tinh vi hơn).
+ */
+const cidrList = z
+  .string()
+  .default('')
+  .refine(
+    (value) =>
+      value
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item !== '')
+        .every((item) => CIDR_ITEM_PATTERN.test(item)),
+    { message: 'must be a comma-separated list of CIDRs, e.g. 172.20.0.0/16' },
+  );
+
 /**
  * Cấu hình của tiến trình `api`: môi trường chạy, địa chỉ lắng nghe (mặc định :8080), giới hạn
  * body, Postgres và các giới hạn của endpoint.
  *
- * Luật chéo SEC-05: `APP_ENV=production` mà bật `ALLOW_INSECURE_HTTP` thì từ chối khởi động.
+ * Luật chéo SEC-05: `APP_ENV=production` mà bật `ALLOW_INSECURE_HTTP` hoặc đặt `SSRF_ALLOWLIST`
+ * khác rỗng thì từ chối khởi động.
  * `when: () => true` bắt zod chạy luật này cả khi biến khác đã sai, để lỗi nằm chung một danh
  * sách (DEP-10); mặc định zod bỏ qua refine khi object đã có lỗi.
  */
@@ -118,6 +139,7 @@ const apiSchema = commonSchema
     API_ADDR: listenAddress.default(parseListenAddress(':8080')),
     MAX_BODY_BYTES: positiveInt(DEFAULT_MAX_BODY_BYTES),
     ALLOW_INSECURE_HTTP: flag,
+    SSRF_ALLOWLIST: cidrList,
     ENDPOINTS_PER_CUSTOMER_MAX: positiveInt(DEFAULT_ENDPOINTS_PER_CUSTOMER_MAX),
     SECRET_ROTATION_GRACE: duration.default(parseDurationMs('24h')),
     IDEMPOTENCY_TTL: duration.default(parseDurationMs('24h')),
@@ -129,6 +151,15 @@ const apiSchema = commonSchema
     {
       path: ['ALLOW_INSECURE_HTTP'],
       message: 'must not be true when APP_ENV is production (SEC-05)',
+      when: () => true,
+    },
+  )
+  .refine(
+    (config) =>
+      !(config.APP_ENV === 'production' && config.SSRF_ALLOWLIST.trim() !== ''),
+    {
+      path: ['SSRF_ALLOWLIST'],
+      message: 'must be empty when APP_ENV is production (SEC-05)',
       when: () => true,
     },
   );

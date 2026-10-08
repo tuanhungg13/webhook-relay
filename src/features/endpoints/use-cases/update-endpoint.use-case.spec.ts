@@ -1,5 +1,6 @@
 import { newId } from '../../../core/id.js';
 import { InMemoryEndpointStore } from '../../../../test/fakes/in-memory-endpoint-store.js';
+import { FakeHostResolver } from '../../../../test/fakes/fake-host-resolver.js';
 import { CreateEndpoint } from './create-endpoint.use-case.js';
 import { UpdateEndpoint } from './update-endpoint.use-case.js';
 
@@ -16,6 +17,7 @@ describe('UpdateEndpoint', () => {
       store,
       { now: () => created },
       { allowInsecureHttp: false, maxPerCustomer: 20 },
+      { resolver: new FakeHostResolver(), allowlist: [] },
     ).execute({
       appId,
       customerId: 'cus_1',
@@ -23,8 +25,12 @@ describe('UpdateEndpoint', () => {
       eventTypes: ['order.created'],
     });
     if (result.status !== 'created') throw new Error(result.status);
-    const useCase = new UpdateEndpoint(store, { now: () => later }, options);
-    return { useCase, endpoint: result.endpoint };
+    const resolver = new FakeHostResolver();
+    const useCase = new UpdateEndpoint(store, { now: () => later }, options, {
+      resolver,
+      allowlist: [],
+    });
+    return { useCase, resolver, endpoint: result.endpoint };
   }
 
   it('changes only the given fields, dedupes event types and stamps updatedAt', async () => {
@@ -43,6 +49,26 @@ describe('UpdateEndpoint', () => {
         updatedAt: later,
       },
     });
+  });
+
+  it('rejects a new URL that points at an internal address (SEC-01)', async () => {
+    const { useCase, endpoint } = await setup();
+    const result = await useCase.execute({
+      appId,
+      id: endpoint.id,
+      patch: { url: 'https://10.0.0.5/h' },
+    });
+    expect(result.status).toBe('invalid_url');
+  });
+
+  it('does not resolve DNS when the URL is not part of the patch', async () => {
+    const { useCase, resolver, endpoint } = await setup();
+    await useCase.execute({
+      appId,
+      id: endpoint.id,
+      patch: { rateLimitRps: 3 },
+    });
+    expect(resolver.calls).toEqual([]);
   });
 
   it('rejects a new URL that breaks the static rules', async () => {

@@ -1,5 +1,6 @@
 import { newId } from '../../../core/id.js';
 import { InMemoryEndpointStore } from '../../../../test/fakes/in-memory-endpoint-store.js';
+import { FakeHostResolver } from '../../../../test/fakes/fake-host-resolver.js';
 import { CreateEndpoint } from './create-endpoint.use-case.js';
 
 describe('CreateEndpoint', () => {
@@ -16,7 +17,12 @@ describe('CreateEndpoint', () => {
   /** Store rỗng và use case với giới hạn 2 endpoint mỗi customer (mặc định chỉ https). */
   function setup(options = { allowInsecureHttp: false, maxPerCustomer: 2 }) {
     const store = new InMemoryEndpointStore();
-    return { store, useCase: new CreateEndpoint(store, clock, options) };
+    const resolver = new FakeHostResolver();
+    const useCase = new CreateEndpoint(store, clock, options, {
+      resolver,
+      allowlist: [],
+    });
+    return { store, resolver, useCase };
   }
 
   it('creates an active endpoint with a secret and default limits', async () => {
@@ -67,6 +73,40 @@ describe('CreateEndpoint', () => {
       await useCase.execute({ ...input, url: 'http://shop.example/hook' }),
     ).toEqual({ status: 'invalid_url', message: 'must use https' });
     expect(await store.list(appId, { limit: 10 })).toEqual([]);
+  });
+
+  it.each([
+    'https://127.0.0.1/h',
+    'https://169.254.169.254/latest/meta-data/',
+    'https://[::ffff:7f00:1]/h',
+  ])(
+    'rejects the internal IP literal %s, writing nothing (SEC-01)',
+    async (url) => {
+      const { store, resolver, useCase } = setup();
+      const result = await useCase.execute({ ...input, url });
+      expect(result.status).toBe('invalid_url');
+      expect(resolver.calls).toEqual([]);
+      expect(await store.list(appId, { limit: 10 })).toEqual([]);
+    },
+  );
+
+  it('rejects a name that resolves to an internal IP, even beside a public one', async () => {
+    const { store, resolver, useCase } = setup();
+    resolver.answer(['93.184.216.34', '10.0.0.5']);
+    expect(await useCase.execute(input)).toEqual({
+      status: 'invalid_url',
+      message: 'host must not resolve to a private or reserved address',
+    });
+    expect(await store.list(appId, { limit: 10 })).toEqual([]);
+  });
+
+  it('rejects with a clear message when DNS fails', async () => {
+    const { resolver, useCase } = setup();
+    resolver.answer(new Error('timeout'));
+    expect(await useCase.execute(input)).toEqual({
+      status: 'invalid_url',
+      message: 'host could not be resolved',
+    });
   });
 
   it('accepts http when insecure HTTP is allowed', async () => {

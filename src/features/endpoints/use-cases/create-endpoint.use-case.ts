@@ -2,6 +2,10 @@ import { validateEndpointUrl } from '../../../core/endpoint-url.js';
 import { type Id, newId } from '../../../core/id.js';
 import { generateWebhookSecret } from '../../../core/webhook-secret.js';
 import type { Clock } from '../../../platform/clock.js';
+import {
+  checkEndpointHost,
+  type HostCheckDeps,
+} from './check-endpoint-host.js';
 import type { Endpoint, EndpointStore } from '../ports/endpoint-store.port.js';
 
 /** Mặc định của `rate_limit_rps` khi App không gửi (spec 05). */
@@ -12,7 +16,7 @@ const DEFAULT_MAX_CONCURRENCY = 10;
 /**
  * Kết quả tạo endpoint, phân biệt bằng `status`:
  * - `'created'`: kèm endpoint vừa tạo (có secret, đây là lần duy nhất secret được trả ra, API-31);
- * - `'invalid_url'`: URL sai luật tĩnh, kèm mô tả lỗi; không ghi gì;
+ * - `'invalid_url'`: URL sai luật tĩnh hoặc trỏ vào IP nội bộ (SSRF), kèm mô tả lỗi; không ghi gì;
  * - `'limit_exceeded'`: customer đã đủ `limit` endpoint (API-30); không ghi gì.
  */
 export type CreateEndpointResult =
@@ -38,19 +42,22 @@ export interface CreateEndpointOptions {
 
 /**
  * Use case: App đăng ký một endpoint nhận webhook cho một customer (spec 05, tạo endpoint).
- * Chưa kiểm tra SSRF (phân giải DNS, chặn IP nội bộ): việc của lát SSRF.
+ * Ngoài luật tĩnh còn phân giải DNS và chặn IP nội bộ (SEC-01).
  */
 export class CreateEndpoint {
   constructor(
     private readonly store: EndpointStore,
     private readonly clock: Clock,
     private readonly options: CreateEndpointOptions,
+    private readonly hostCheck: HostCheckDeps,
   ) {}
 
   /** Kiểm URL, sinh ID và secret, rồi lưu trong giới hạn của customer. */
   async execute(input: CreateEndpointInput): Promise<CreateEndpointResult> {
-    // 1. Luật tĩnh của URL (https, không user:pass@, cổng, độ dài).
-    const urlError = validateEndpointUrl(input.url, this.options);
+    // 1. Luật tĩnh của URL (https, không user:pass@, cổng, độ dài), rồi host không được trỏ vào IP nội bộ.
+    const urlError =
+      validateEndpointUrl(input.url, this.options) ??
+      (await checkEndpointHost(input.url, this.hostCheck));
     if (urlError !== null) return { status: 'invalid_url', message: urlError };
 
     // 2. Dựng endpoint mới: đang hoạt động, chưa có secret cũ. `Set` loại event type trùng

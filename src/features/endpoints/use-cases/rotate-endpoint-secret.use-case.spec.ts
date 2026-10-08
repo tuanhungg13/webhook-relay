@@ -1,5 +1,6 @@
 import { newId } from '../../../core/id.js';
 import { InMemoryEndpointStore } from '../../../../test/fakes/in-memory-endpoint-store.js';
+import { FakeHostResolver } from '../../../../test/fakes/fake-host-resolver.js';
 import { CreateEndpoint } from './create-endpoint.use-case.js';
 import { RotateEndpointSecret } from './rotate-endpoint-secret.use-case.js';
 
@@ -15,6 +16,7 @@ describe('RotateEndpointSecret', () => {
       store,
       { now: () => created },
       { allowInsecureHttp: false, maxPerCustomer: 20 },
+      { resolver: new FakeHostResolver(), allowlist: [] },
     ).execute({
       appId,
       customerId: 'cus_1',

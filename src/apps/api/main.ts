@@ -1,5 +1,7 @@
 import { NestFactory } from '@nestjs/core';
+import { DnsHostResolver } from '../../adapters/http-sender/dns-host-resolver.js';
 import { createPool } from '../../adapters/postgres/pool.js';
+import { parseCidrList } from '../../core/ip-policy.js';
 import { loadApiConfig } from '../../platform/config.js';
 import {
   exitOnFatalErrors,
@@ -22,6 +24,16 @@ async function main(): Promise<void> {
     );
   }
 
+  // CIDR sai tinh vi hơn regex của config thì lỗi ở đây, trước khi nhận request.
+  const ssrfAllowlist = parseCidrList(config.SSRF_ALLOWLIST);
+  // Chỉ dùng cho dev/test; production đã bị chặn ở bước đọc cấu hình (SEC-05).
+  if (ssrfAllowlist.length > 0) {
+    logger.warn(
+      { app_env: config.APP_ENV, ranges: ssrfAllowlist.length },
+      'SSRF_ALLOWLIST is enabled: internal address ranges may be used as endpoints',
+    );
+  }
+
   const pool = createPool(config, logger);
   const endpoints = {
     allowInsecureHttp: config.ALLOW_INSECURE_HTTP,
@@ -30,7 +42,13 @@ async function main(): Promise<void> {
   };
   const ingestion = { idempotencyTtlMs: config.IDEMPOTENCY_TTL };
   const app = await NestFactory.create(
-    ApiModule.register({ pool, logger, endpoints, ingestion }),
+    ApiModule.register({
+      pool,
+      logger,
+      endpoints,
+      hostCheck: { resolver: new DnsHostResolver(), allowlist: ssrfAllowlist },
+      ingestion,
+    }),
     { ...API_APP_OPTIONS, logger: new NestLogger(logger) },
   );
   configureApiApp(app, { logger, maxBodyBytes: config.MAX_BODY_BYTES });

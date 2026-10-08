@@ -49,6 +49,7 @@ describe('loadApiConfig', () => {
     expect(loadApiConfig({ DATABASE_URL, APP_ENV })).toEqual({
       APP_ENV,
       ALLOW_INSECURE_HTTP: false,
+      SSRF_ALLOWLIST: '',
       ENDPOINTS_PER_CUSTOMER_MAX: 20,
       SECRET_ROTATION_GRACE: 86_400_000,
       IDEMPOTENCY_TTL: 86_400_000,
@@ -91,6 +92,28 @@ describe('loadApiConfig', () => {
     ).toThrow(
       /(?=[\s\S]*DB_POOL_SIZE)(?=[\s\S]*ALLOW_INSECURE_HTTP.*production)/,
     );
+  });
+
+  it('accepts a CIDR allowlist outside production, rejects bad items and production use (SEC-05)', () => {
+    const load = (env: Record<string, string>) =>
+      loadApiConfig({ DATABASE_URL, APP_ENV, ...env }).SSRF_ALLOWLIST;
+    expect(load({ SSRF_ALLOWLIST: '172.20.0.0/16, fd00::/8' })).toBe(
+      '172.20.0.0/16, fd00::/8',
+    );
+    expect(() => load({ SSRF_ALLOWLIST: '10.0.0.1' })).toThrow(
+      /SSRF_ALLOWLIST/,
+    );
+    expect(() =>
+      loadApiConfig({
+        DATABASE_URL,
+        APP_ENV: 'production',
+        SSRF_ALLOWLIST: '172.20.0.0/16',
+      }),
+    ).toThrow(/SSRF_ALLOWLIST.*production/);
+    expect(
+      loadApiConfig({ DATABASE_URL, APP_ENV: 'production', SSRF_ALLOWLIST: '' })
+        .SSRF_ALLOWLIST,
+    ).toBe('');
   });
 
   it('lists every invalid variable at once', () => {
