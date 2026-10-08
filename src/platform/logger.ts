@@ -22,3 +22,18 @@ export function createLogger(options: { mode: string; level: string }): Logger {
     pino.destination({ dest: STDOUT_FD, sync: true }),
   );
 }
+
+/**
+ * Chỉ lấy `code` và `message` của lỗi để log. Không log nguyên đối tượng lỗi: lỗi ràng buộc của
+ * `pg` có trường `detail` chứa cả dòng dữ liệu (có thể có secret), không được vào log (SEC-13).
+ */
+export function errorFields(error: unknown): {
+  code?: string;
+  message: string;
+} {
+  if (!(error instanceof Error)) return { message: String(error) };
+  const code = (error as { code?: unknown }).code;
+  return typeof code === 'string'
+    ? { code, message: error.message }
+    : { message: error.message };
+}

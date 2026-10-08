@@ -26,7 +26,8 @@
     "db:down": "docker compose -f deploy/compose.yaml down",
     "db:migrate": "nest build && node dist/apps/migrate/main.js",
     "db:schema": "vitest run --config ./vitest.config.integration.ts --update schema-snapshot",
-    "admin": "node dist/apps/admin/main.js"
+    "admin": "node dist/apps/admin/main.js",
+    "worker": "node --env-file-if-exists=.env dist/apps/worker/main.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

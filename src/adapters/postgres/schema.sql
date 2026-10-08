@@ -29,7 +29,8 @@ CREATE TYPE public.attempt_error AS ENUM (
     'dns',
     'tls',
     'ssrf_blocked',
-    'circuit_open'
+    'circuit_open',
+    'connection_error'
 );
 
 

@@ -124,18 +124,56 @@ const cidrList = z
     { message: 'must be a comma-separated list of CIDRs, e.g. 172.20.0.0/16' },
   );
 
+/** Giá trị được phép của `APP_ENV`. */
+const appEnv = z.enum(['development', 'test', 'production']);
+
+/** Phần cấu hình mà luật SEC-05 đọc; api và worker đều có. */
+interface InsecureHttpConfig {
+  APP_ENV: z.infer<typeof appEnv>;
+  ALLOW_INSECURE_HTTP: boolean;
+  SSRF_ALLOWLIST: string;
+}
+
 /**
- * Cấu hình của tiến trình `api`: môi trường chạy, địa chỉ lắng nghe (mặc định :8080), giới hạn
- * body, Postgres và các giới hạn của endpoint.
+ * Gắn luật chéo SEC-05 vào `schema` (dùng chung cho api và worker): `APP_ENV=production` mà bật
+ * `ALLOW_INSECURE_HTTP` hoặc đặt `SSRF_ALLOWLIST` khác rỗng thì từ chối khởi động.
  *
- * Luật chéo SEC-05: `APP_ENV=production` mà bật `ALLOW_INSECURE_HTTP` hoặc đặt `SSRF_ALLOWLIST`
- * khác rỗng thì từ chối khởi động.
  * `when: () => true` bắt zod chạy luật này cả khi biến khác đã sai, để lỗi nằm chung một danh
  * sách (DEP-10); mặc định zod bỏ qua refine khi object đã có lỗi.
  */
-const apiSchema = commonSchema
-  .extend({
-    APP_ENV: z.enum(['development', 'test', 'production']),
+function refineInsecureHttp<S extends z.ZodType<InsecureHttpConfig>>(
+  schema: S,
+) {
+  return schema
+    .refine(
+      (config) =>
+        !(config.APP_ENV === 'production' && config.ALLOW_INSECURE_HTTP),
+      {
+        path: ['ALLOW_INSECURE_HTTP'],
+        message: 'must not be true when APP_ENV is production (SEC-05)',
+        when: () => true,
+      },
+    )
+    .refine(
+      (config) =>
+        !(
+          config.APP_ENV === 'production' && config.SSRF_ALLOWLIST.trim() !== ''
+        ),
+      {
+        path: ['SSRF_ALLOWLIST'],
+        message: 'must be empty when APP_ENV is production (SEC-05)',
+        when: () => true,
+      },
+    );
+}
+
+/**
+ * Cấu hình của tiến trình `api`: môi trường chạy, địa chỉ lắng nghe (mặc định :8080), giới hạn
+ * body, Postgres và các giới hạn của endpoint; kèm luật SEC-05.
+ */
+const apiSchema = refineInsecureHttp(
+  commonSchema.extend({
+    APP_ENV: appEnv,
     API_ADDR: listenAddress.default(parseListenAddress(':8080')),
     MAX_BODY_BYTES: positiveInt(DEFAULT_MAX_BODY_BYTES),
     ALLOW_INSECURE_HTTP: flag,
@@ -144,25 +182,90 @@ const apiSchema = commonSchema
     SECRET_ROTATION_GRACE: duration.default(parseDurationMs('24h')),
     IDEMPOTENCY_TTL: duration.default(parseDurationMs('24h')),
     ...databaseFields(API_DEFAULT_POOL_SIZE),
-  })
+  }),
+);
+
+/**
+ * Đổi danh sách thời lượng cách nhau bởi dấu phẩy (`"5s, 5m, 2h"`) ra mảng mili giây; phần tử
+ * rỗng bị bỏ qua. Phần tử sai thì ném lỗi của `parseDurationMs`, có nêu đúng phần tử đó.
+ */
+function parseDurationList(value: string): number[] {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item !== '')
+    .map(parseDurationMs);
+}
+
+/** Kiểu zod cho biến môi trường dạng danh sách thời lượng; xử lý lỗi giống `duration`. */
+const durationList = z.string().transform((value, ctx) => {
+  try {
+    return parseDurationList(value);
+  } catch (error) {
+    ctx.addIssue({ code: 'custom', message: (error as Error).message });
+    return z.NEVER;
+  }
+});
+
+/** Số kết nối Postgres mặc định của tiến trình `worker` (spec 13). */
+const WORKER_DEFAULT_POOL_SIZE = 20;
+/** Mặc định của `WORKER_CONCURRENCY`: số delivery gửi song song tối đa của một worker. */
+const DEFAULT_WORKER_CONCURRENCY = 200;
+/** Mặc định của `MAX_ATTEMPTS` (spec 08). */
+const DEFAULT_MAX_ATTEMPTS = 8;
+/** Lịch retry mặc định của spec 08: delay sau attempt lỗi thứ 1, 2, ... */
+const DEFAULT_RETRY_DELAYS = '5s,5m,30m,2h,5h,10h,10h';
+/** Lease phải dài hơn `REQUEST_TIMEOUT` ít nhất chừng này (WRK-03). */
+const LEASE_MARGIN_MS = 15_000;
+
+/**
+ * Cấu hình của tiến trình `worker`: gửi song song, ngủ khi hết việc (chỉ giai đoạn 1), timeout
+ * HTTP, lease, lịch retry, Postgres; kèm SEC-05 và các ràng buộc khởi động của spec 13.
+ *
+ * Các luật chéo chạy cả khi biến khác đã sai (`when: () => true`, DEP-10), nên giá trị có thể là
+ * giá trị hỏng (`undefined`): so sánh với `undefined` luôn ra `false` nên luật viết dạng
+ * `!(sai)` để im lặng, còn lỗi gốc của biến đó đã được báo riêng.
+ */
+const workerSchema = refineInsecureHttp(
+  commonSchema.extend({
+    APP_ENV: appEnv,
+    ALLOW_INSECURE_HTTP: flag,
+    SSRF_ALLOWLIST: cidrList,
+    WORKER_CONCURRENCY: positiveInt(DEFAULT_WORKER_CONCURRENCY),
+    WORKER_IDLE_SLEEP: duration.default(parseDurationMs('200ms')),
+    REQUEST_TIMEOUT: duration.default(parseDurationMs('10s')),
+    CONNECT_TIMEOUT: duration.default(parseDurationMs('3s')),
+    LEASE_DURATION: duration.default(parseDurationMs('30s')),
+    MAX_ATTEMPTS: positiveInt(DEFAULT_MAX_ATTEMPTS),
+    RETRY_DELAYS: durationList.default(parseDurationList(DEFAULT_RETRY_DELAYS)),
+    ...databaseFields(WORKER_DEFAULT_POOL_SIZE),
+  }),
+)
   .refine(
     (config) =>
-      !(config.APP_ENV === 'production' && config.ALLOW_INSECURE_HTTP),
+      // RETRY_DELAYS sai thì không phải mảng; lỗi đó đã được báo riêng.
+      !Array.isArray(config.RETRY_DELAYS) ||
+      config.MAX_ATTEMPTS === config.RETRY_DELAYS.length + 1,
     {
-      path: ['ALLOW_INSECURE_HTTP'],
-      message: 'must not be true when APP_ENV is production (SEC-05)',
+      path: ['MAX_ATTEMPTS'],
+      message: 'must equal the number of RETRY_DELAYS + 1',
       when: () => true,
     },
   )
   .refine(
     (config) =>
-      !(config.APP_ENV === 'production' && config.SSRF_ALLOWLIST.trim() !== ''),
+      !(config.LEASE_DURATION < config.REQUEST_TIMEOUT + LEASE_MARGIN_MS),
     {
-      path: ['SSRF_ALLOWLIST'],
-      message: 'must be empty when APP_ENV is production (SEC-05)',
+      path: ['LEASE_DURATION'],
+      message: 'must be at least REQUEST_TIMEOUT + 15s (WRK-03)',
       when: () => true,
     },
-  );
+  )
+  .refine((config) => !(config.CONNECT_TIMEOUT >= config.REQUEST_TIMEOUT), {
+    path: ['CONNECT_TIMEOUT'],
+    message: 'must be less than REQUEST_TIMEOUT',
+    when: () => true,
+  });
 
 /** Cấu hình của các tiến trình CLI cần Postgres (`migrate`, `admin`): pool mặc định 1 kết nối. */
 const databaseSchema = commonSchema.extend(databaseFields(1));
@@ -171,6 +274,7 @@ const databaseSchema = commonSchema.extend(databaseFields(1));
 export type CommonConfig = z.infer<typeof commonSchema>;
 export type ApiConfig = z.infer<typeof apiSchema>;
 export type DatabaseConfig = z.infer<typeof databaseSchema>;
+export type WorkerConfig = z.infer<typeof workerSchema>;
 
 /**
  * Kiểm tra biến môi trường `env` theo `schema` và trả về cấu hình đã đổi kiểu.
@@ -195,4 +299,9 @@ export function loadApiConfig(env: NodeJS.ProcessEnv): ApiConfig {
 /** Đọc và kiểm tra cấu hình của các tiến trình cần Postgres (`migrate`, `admin`). */
 export function loadDatabaseConfig(env: NodeJS.ProcessEnv): DatabaseConfig {
   return load(databaseSchema, env);
+}
+
+/** Đọc và kiểm tra cấu hình của tiến trình `worker`. */
+export function loadWorkerConfig(env: NodeJS.ProcessEnv): WorkerConfig {
+  return load(workerSchema, env);
 }

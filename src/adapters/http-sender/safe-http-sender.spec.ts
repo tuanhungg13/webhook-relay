@@ -229,6 +229,25 @@ describe('SafeHttpSender', () => {
     ).toEqual({ status: 'http_status', httpStatus: 503, snippet: 'down' });
   });
 
+  it('drops NUL bytes from the snippet, which Postgres text rejects (U16)', async () => {
+    const server = await serve((res) => res.end('a\0b\0'));
+    const { sender } = makeSender();
+    expect(
+      await sender.send(request(`http://a.example:${server.port}/`)),
+    ).toEqual({ status: 'ok', httpStatus: 200, snippet: 'ab' });
+  });
+
+  it('reports a status code outside 100..599 as connection_error (U17)', async () => {
+    const server = await serve((res) => {
+      res.statusCode = 999;
+      res.end('odd');
+    });
+    const { sender } = makeSender();
+    expect(
+      await sender.send(request(`http://a.example:${server.port}/`)),
+    ).toEqual({ status: 'connection_error' });
+  });
+
   it('cuts the snippet at 1 KiB and drops the rest of a 1 MiB response (I4)', async () => {
     const server = await serve((res) => res.end('x'.repeat(1024 * 1024)));
     const { sender } = makeSender();

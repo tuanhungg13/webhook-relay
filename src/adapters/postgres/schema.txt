@@ -1,6 +1,6 @@
-           enum           |                              values                               
---------------------------+-------------------------------------------------------------------
- attempt_error            | timeout, connection_refused, dns, tls, ssrf_blocked, circuit_open
+           enum           |                                       values                                        
+--------------------------+-------------------------------------------------------------------------------------
+ attempt_error            | timeout, connection_refused, dns, tls, ssrf_blocked, circuit_open, connection_error
  delivery_failed_reason   | exhausted, endpoint_deleted, endpoint_disabled
  delivery_status          | pending, in_flight, succeeded, failed
  endpoint_disabled_reason | manual, auto_failing

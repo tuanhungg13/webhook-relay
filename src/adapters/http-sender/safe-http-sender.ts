@@ -17,6 +17,10 @@ const CONNECT_TIMEOUT_MS = 3000;
 const REQUEST_TIMEOUT_MS = 10_000;
 /** Phần phản hồi giữ lại làm `response_snippet`: 1 KiB. */
 const RESPONSE_SNIPPET_BYTES = 1024;
+/** Mã HTTP nhỏ nhất hợp lệ, khớp CHECK `attempts_http_status_check` của schema. */
+const MIN_HTTP_STATUS = 100;
+/** Mã HTTP lớn nhất hợp lệ, khớp CHECK `attempts_http_status_check` của schema. */
+const MAX_HTTP_STATUS = 599;
 /** Số kết nối keep-alive rảnh tối đa mỗi host. */
 const MAX_FREE_SOCKETS = 10;
 /** Cổng mặc định của https. */
@@ -173,15 +177,24 @@ function readResponse(
 ): void {
   const chunks: Buffer[] = [];
   let length = 0;
-  /** Kết quả theo mã HTTP, kèm phần đầu phản hồi đã đọc. */
+  /**
+   * Kết quả theo mã HTTP, kèm phần đầu phản hồi đã đọc. Dữ liệu do người nhận gửi phải luôn ghi
+   * được vào Postgres (nếu không, attempt ghi lỗi và delivery bị gửi lại mãi): mã ngoài
+   * 100..599 (Node vẫn nhận, vd 999) coi là lỗi giao thức `connection_error`; byte `\0` bị bỏ vì
+   * cột `text` của Postgres từ chối nó.
+   */
   const outcome = (): SendOutcome => {
     const httpStatus = res.statusCode ?? 0;
+    if (httpStatus < MIN_HTTP_STATUS || httpStatus > MAX_HTTP_STATUS) {
+      return { status: 'connection_error' };
+    }
     return {
       status: httpStatus >= 200 && httpStatus < 300 ? 'ok' : 'http_status',
       httpStatus,
       snippet: Buffer.concat(chunks)
         .subarray(0, RESPONSE_SNIPPET_BYTES)
-        .toString('utf8'),
+        .toString('utf8')
+        .replaceAll('\0', ''),
     };
   };
   res.on('data', (chunk: Buffer) => {
